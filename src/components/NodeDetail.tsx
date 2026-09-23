@@ -4,14 +4,15 @@ import {
   Tooltip, XAxis, YAxis,
 } from "recharts"
 
-import { Badge } from "@/components/ui/badge"
+import { Card } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
-import { Country, Status } from "@/components/NodeCard"
+import { Country } from "@/components/NodeCard"
 import { api, type Node } from "@/lib/api"
 import {
   axisBytes, axisTop, bytes, clockFor, despike, quarters, cpuName, CYCLES, FOREVER, money, osName, rate,
-  timeTicks,
+  timeTicks, uptime,
 } from "@/lib/format"
+import { cn } from "@/lib/utils"
 
 type Point = {
   ts: number
@@ -96,12 +97,30 @@ function Panel({ title, children }: { title: string; children: React.ReactNode }
   )
 }
 
+// The two chart tabs, as plain text tabs rather than filled pills: the active
+// one carries the weight, the panel below carries the colour.
 function Tab({ active, onClick, children }: { active: boolean; onClick: () => void; children: string }) {
   return (
     <button
       onClick={onClick}
+      className={`text-sm transition-colors ${
+        active ? "font-semibold text-foreground" : "text-muted-foreground hover:text-foreground"
+      }`}
+    >
+      {children}
+    </button>
+  )
+}
+
+// A segment of the range selector: a track of muted ground with the active
+// range raised on a card-coloured pill, the shape a range picker takes on this
+// theme's cards.
+function Seg({ active, onClick, children }: { active: boolean; onClick: () => void; children: string }) {
+  return (
+    <button
+      onClick={onClick}
       className={`rounded-md px-2.5 py-1 text-xs transition-colors ${
-        active ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted"
+        active ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
       }`}
     >
       {children}
@@ -129,9 +148,9 @@ function despikeWindow(points: { ts: number }[]): number {
 function Fact({ label, value }: { label: string; value?: string | number | null }) {
   if (value === null || value === undefined || value === "") return null
   return (
-    <div className="min-w-0">
+    <div className="min-w-0 rounded-xl border bg-card px-4 py-3">
       <dt className="text-xs text-muted-foreground">{label}</dt>
-      <dd className="truncate text-sm">{value}</dd>
+      <dd className="mt-1 truncate text-sm font-medium">{value}</dd>
     </div>
   )
 }
@@ -312,24 +331,35 @@ export function NodeDetail({ node }: { node: Node }) {
     ...AXIS,
   })
 
+  // Inline status for the header: a coloured dot and a duration, without the
+  // bordered badge the card uses -- at this size the name carries the frame.
+  const down = node.last_seen ? Date.now() / 1000 - node.last_seen : 0
+  const deployed = node.cpu_cores > 0 || node.mem_total > 0
+  const statusLabel = node.online
+    ? `在线 ${node.metrics ? uptime(node.metrics.uptime) : ""}`.trim()
+    : deployed
+      ? `离线 ${down >= 60 ? uptime(down) : ""}`.trim()
+      : "未接入"
+
   return (
-    <div className="space-y-4">
-      <div className="flex items-center gap-2">
-        <h2 className="truncate text-lg font-medium">{node.name}</h2>
-        <Country node={node} />
-        <Status node={node} />
-        {node.agent_version && (
-          <Badge variant="outline" className="font-normal">
-            agent {node.agent_version}
-          </Badge>
-        )}
+    <div className="space-y-5">
+      <div className="space-y-2">
+        <div className="flex items-center gap-2.5">
+          <h2 className="truncate text-2xl font-bold tracking-tight sm:text-3xl">{node.name}</h2>
+          <Country node={node} />
+        </div>
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
+          <span className="inline-flex items-center gap-2">
+            <span className={cn("size-2 rounded-full", node.online ? "bg-ok shadow-[0_0_0_3px] shadow-ok/20" : "bg-muted-foreground/40")} />
+            <span className={cn("tnum", !node.online && "text-muted-foreground")}>{statusLabel}</span>
+          </span>
+          {node.agent_version && <span className="text-muted-foreground">agent {node.agent_version}</span>}
+        </div>
       </div>
 
-      {/* One flat row of facts: what is left after the traffic figures moved
-          out is one machine's spec sheet, and a box around a single topic is
-          just a box. Three across at lg, two at md, one on a phone -- a kernel
-          version or a CPU model needs about 270px to stay whole. */}
-      <dl className="grid gap-x-6 gap-y-3 md:grid-cols-2 lg:grid-cols-3">
+      {/* One machine's spec sheet as a row of bordered tiles: six across on a
+          wide screen, folding to three then two as it narrows. */}
+      <dl className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-6">
         <Fact label="系统" value={[osName(node.os), node.kernel].filter(Boolean).join(" · ")} />
         <Fact
           label="CPU"
@@ -358,39 +388,42 @@ export function NodeDetail({ node }: { node: Node }) {
         <p className="rounded-md bg-muted px-3 py-2 text-sm whitespace-pre-wrap">{node.remark}</p>
       )}
 
-      <div className="space-y-2 border-t pt-4">
-        <div className="flex gap-1">
-          {TABS.map((t) => (
-            <Tab key={t.key} active={tab === t.key} onClick={() => setTab(t.key)}>
-              {t.label}
-            </Tab>
-          ))}
-        </div>
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-          <div className="flex gap-1">
-            {RANGES_FOR[tab].map((r) => (
-              <Tab
-                key={r.hours}
-                active={hours === r.hours}
-                onClick={() => setRanges((all) => ({ ...all, [tab]: r.hours }))}
-              >
-                {r.label}
+      <Card className="gap-0 p-4 sm:p-5">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-4">
+            {TABS.map((t) => (
+              <Tab key={t.key} active={tab === t.key} onClick={() => setTab(t.key)}>
+                {t.label}
               </Tab>
             ))}
           </div>
-          {tab === "latency" && (
-            <label className="flex cursor-pointer items-center gap-1.5 text-xs text-muted-foreground">
-              <input
-                type="checkbox"
-                checked={smooth}
-                onChange={(e) => setSmooth(e.target.checked)}
-                className="accent-foreground"
-              />
-              削峰
-            </label>
-          )}
+          <div className="flex items-center gap-3">
+            {tab === "latency" && (
+              <label className="flex cursor-pointer items-center gap-1.5 text-xs text-muted-foreground">
+                <input
+                  type="checkbox"
+                  checked={smooth}
+                  onChange={(e) => setSmooth(e.target.checked)}
+                  className="accent-primary"
+                />
+                削峰
+              </label>
+            )}
+            <div className="inline-flex gap-0.5 rounded-lg bg-muted p-0.5">
+              {RANGES_FOR[tab].map((r) => (
+                <Seg
+                  key={r.hours}
+                  active={hours === r.hours}
+                  onClick={() => setRanges((all) => ({ ...all, [tab]: r.hours }))}
+                >
+                  {r.label}
+                </Seg>
+              ))}
+            </div>
+          </div>
         </div>
-      </div>
+
+        <div className="mt-4">
 
       {!data ? (
         <Skeleton className="h-40 w-full" />
@@ -556,6 +589,12 @@ export function NodeDetail({ node }: { node: Node }) {
           <Panel title="CPU">
             <ResponsiveContainer>
               <AreaChart data={metricRows}>
+                <defs>
+                  <linearGradient id="grad-cpu" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="var(--color-chart-1)" stopOpacity="0.35" />
+                    <stop offset="100%" stopColor="var(--color-chart-1)" stopOpacity="0.02" />
+                  </linearGradient>
+                </defs>
                 <CartesianGrid strokeDasharray="3 3" className="stroke-border" vertical={false} />
                 <XAxis {...timeAxis(metricRows)} />
                 <YAxis domain={[0, tops.cpu]} ticks={quarters(tops.cpu)} unit="%" width={Y_WIDTH} {...AXIS} />
@@ -564,7 +603,7 @@ export function NodeDetail({ node }: { node: Node }) {
                   formatter={(v) => [`${Number(v).toFixed(1)}%`, "CPU"]}
                   contentStyle={{ fontSize: 12 }}
                 />
-                <Area dataKey="cpu" stroke="var(--color-chart-1)" fill="var(--color-chart-1)" fillOpacity={0.15} {...SERIES} />
+                <Area dataKey="cpu" stroke="var(--color-chart-1)" fill="url(#grad-cpu)" {...SERIES} />
               </AreaChart>
             </ResponsiveContainer>
           </Panel>
@@ -577,6 +616,12 @@ export function NodeDetail({ node }: { node: Node }) {
           <Panel title={`内存 · ${bytes(node.mem_total)}`}>
             <ResponsiveContainer>
               <AreaChart data={metricRows}>
+                <defs>
+                  <linearGradient id="grad-mem" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="var(--color-chart-2)" stopOpacity="0.35" />
+                    <stop offset="100%" stopColor="var(--color-chart-2)" stopOpacity="0.02" />
+                  </linearGradient>
+                </defs>
                 <CartesianGrid strokeDasharray="3 3" className="stroke-border" vertical={false} />
                 <XAxis {...timeAxis(metricRows)} />
                 <YAxis domain={[0, node.mem_total]} ticks={quarters(node.mem_total)} tickFormatter={axisBytes} width={Y_WIDTH} {...AXIS} />
@@ -585,7 +630,7 @@ export function NodeDetail({ node }: { node: Node }) {
                   formatter={(v) => bytes(Number(v))}
                   contentStyle={{ fontSize: 12 }}
                 />
-                <Area dataKey="mem_used" name="内存" stroke="var(--color-chart-2)" fill="var(--color-chart-2)" fillOpacity={0.15} {...SERIES} />
+                <Area dataKey="mem_used" name="内存" stroke="var(--color-chart-2)" fill="url(#grad-mem)" {...SERIES} />
               </AreaChart>
             </ResponsiveContainer>
           </Panel>
@@ -615,6 +660,12 @@ export function NodeDetail({ node }: { node: Node }) {
           <Panel title={`硬盘 · ${bytes(node.disk_total)}`}>
             <ResponsiveContainer>
               <AreaChart data={metricRows}>
+                <defs>
+                  <linearGradient id="grad-disk" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="var(--color-chart-2)" stopOpacity="0.35" />
+                    <stop offset="100%" stopColor="var(--color-chart-2)" stopOpacity="0.02" />
+                  </linearGradient>
+                </defs>
                 <CartesianGrid strokeDasharray="3 3" className="stroke-border" vertical={false} />
                 <XAxis {...timeAxis(metricRows)} />
                 <YAxis domain={[0, node.disk_total]} ticks={quarters(node.disk_total)} tickFormatter={axisBytes} width={Y_WIDTH} {...AXIS} />
@@ -623,12 +674,14 @@ export function NodeDetail({ node }: { node: Node }) {
                   formatter={(v) => bytes(Number(v))}
                   contentStyle={{ fontSize: 12 }}
                 />
-                <Area dataKey="disk_used" name="硬盘" stroke="var(--color-chart-2)" fill="var(--color-chart-2)" fillOpacity={0.15} {...SERIES} />
+                <Area dataKey="disk_used" name="硬盘" stroke="var(--color-chart-2)" fill="url(#grad-disk)" {...SERIES} />
               </AreaChart>
             </ResponsiveContainer>
           </Panel>
         </div>
       )}
+        </div>
+      </Card>
     </div>
   )
 }

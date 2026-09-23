@@ -97,6 +97,15 @@ function Expiry({ node }: { node: Node }) {
 
 export function NodeCard({ node, onOpen }: { node: Node; onOpen: () => void }) {
   const m = node.metrics
+  // The same duration the badge shows, rendered inline in the card header: a
+  // coloured dot beside the name carries online/offline, the text carries how
+  // long, matching the node page.
+  const down = node.last_seen ? Date.now() / 1000 - node.last_seen : 0
+  const statusLabel = node.online
+    ? `在线 ${m ? uptime(m.uptime) : ""}`.trim()
+    : deployed(node)
+      ? `离线 ${down >= 60 ? uptime(down) : ""}`.trim()
+      : "未接入"
 
   return (
     <Card
@@ -112,19 +121,21 @@ export function NodeCard({ node, onOpen }: { node: Node; onOpen: () => void }) {
     >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <div className="flex min-w-0 items-center gap-1.5">
-            <h3 className="truncate font-medium">{node.name}</h3>
+          <div className="flex min-w-0 items-center gap-2">
+            <span className={cn("size-2 shrink-0 rounded-full", node.online ? "bg-ok shadow-[0_0_0_3px] shadow-ok/20" : "bg-muted-foreground/40")} />
+            <h3 className="truncate font-semibold">{node.name}</h3>
             <Country node={node} />
           </div>
-          <p className="mt-1 truncate text-xs text-muted-foreground">
+          <p className="mt-1.5 truncate text-xs text-muted-foreground">
             {node.os ? osName(node.os) : "等待首次上报"}
             {node.virt && node.virt !== "none" ? ` · ${node.virt}` : ""}
             {node.arch ? ` · ${node.arch}` : ""}
           </p>
         </div>
-        {/* State right, identity left, one line each. */}
+        {/* State right, identity left: the duration and the renewal countdown,
+            one line each. */}
         <div className="flex shrink-0 flex-col items-end gap-1">
-          <Status node={node} />
+          <span className={cn("tnum text-xs", !node.online && "text-muted-foreground")}>{statusLabel}</span>
           <Expiry node={node} />
         </div>
       </div>

@@ -1,8 +1,8 @@
 {
   "name": "Lumen 简约",
   "short": "lumen",
-  "description": "简洁大方的状态面板，靛蓝点缀，指标条按占用率由蓝转琥珀、红",
-  "version": "1.0.0",
+  "description": "简洁大方的状态面板：卡片化指标、渐变面积图、分段范围选择，青碧点缀",
+  "version": "1.1.0",
   "author": "3922510-creator",
   "url": "https://github.com/3922510-creator/monitor-theme-lumen"
 }
