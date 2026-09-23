@@ -105,6 +105,12 @@ export async function api<T>(path: string, init?: RequestInit): Promise<T> {
 const KEEP = 60
 export const speedHistory = new Map<string | null, { rx: number; tx: number }[]>()
 
+// Per-node throughput history, for the sparkline on each card. Shorter than the
+// summary's window: a card draws roughly twenty bars, so thirty samples keep it
+// fed without holding a fleet's worth of arrays longer than they are drawn.
+const KEEP_PER_NODE = 30
+export const nodeSpeedHistory = new Map<number, { rx: number; tx: number }[]>()
+
 export function sample(nodes: Node[]) {
   const totals = new Map<string | null, { rx: number; tx: number }>()
   for (const n of nodes) {
@@ -124,6 +130,20 @@ export function sample(nodes: Node[]) {
     if (series.length > KEEP) series.shift()
     speedHistory.set(key, series)
   }
+
+  // Per-node series alongside the group totals: an online node contributes its
+  // own throughput; a node that has gone away is dropped so its array is not
+  // held for the life of the page.
+  const live = new Set<number>()
+  for (const n of nodes) {
+    if (!n.online || !n.metrics) continue
+    live.add(n.id)
+    const hist = nodeSpeedHistory.get(n.id) ?? []
+    hist.push({ rx: n.metrics.net_rx, tx: n.metrics.net_tx })
+    if (hist.length > KEEP_PER_NODE) hist.shift()
+    nodeSpeedHistory.set(n.id, hist)
+  }
+  for (const id of nodeSpeedHistory.keys()) if (!live.has(id)) nodeSpeedHistory.delete(id)
 }
 
 /** A malformed report must not remove every other node from the page. */

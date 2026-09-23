@@ -3,9 +3,10 @@
 [monitor](https://github.com/monitor-probe/monitor) 的第三方主题 **Lumen 简约**，派生自
 [官方默认主题](https://github.com/monitor-probe/monitor-theme-default)。
 
-React + Vite + shadcn/ui。在默认主题的中性底色上引入一支青碧（teal）主色：详情页把
-机器规格拆成一排卡片、图表收进带边卡片、面积图用同色自上而下渐变、范围切换用分段控件；
-指标条按占用率由青转琥珀、红，在线节点点亮绿点，一眼可读又不喧闹——简洁大方，不做多余堆叠。
+React + Vite + shadcn/ui。在默认主题的中性底色上引入一支青碧（teal）主色。
+
+- 详情页：机器规格拆成一排卡片，图表收进带边卡片，面积图用同色自上而下渐变，范围切换用分段控件。
+- 主页（布局参考 [monitor-theme-nebula](https://github.com/3922510-creator/monitor-theme-nebula)）：信息密集的节点卡——CPU/内存/磁盘/Swap 分块指标条、上/下行实时速率与迷你柱状图、月流量进度、以及每节点近 12 小时的线路延迟/丢包热力图；顶部四张汇总卡（实时网速 / 节点 / 最忙节点 / 总流量）。
 
 数据处理、主题契约与路由沿用默认主题，只重做外观与布局层。
 

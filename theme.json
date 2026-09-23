@@ -1,8 +1,8 @@
 {
   "name": "Lumen 简约",
   "short": "lumen",
-  "description": "简洁大方的状态面板：卡片化指标、渐变面积图、分段范围选择，青碧点缀",
-  "version": "1.1.0",
+  "description": "简洁大方的状态面板：卡片化详情页 + 信息密集的节点卡（含线路延迟/丢包热力图），青碧点缀",
+  "version": "1.2.0",
   "author": "3922510-creator",
   "url": "https://github.com/3922510-creator/monitor-theme-lumen"
 }
