@@ -91,20 +91,22 @@ function usePing24h(nodeId: number, enabled: boolean) {
   return data
 }
 
+// -500 in light for legibility on white (yellow/orange especially), -400 in
+// dark where the card ground is dark.
 function latColor(lat: number | null): string {
   if (lat === null) return "bg-muted"
-  if (lat < 80) return "bg-emerald-400"
-  if (lat < 150) return "bg-yellow-400"
-  if (lat < 250) return "bg-orange-400"
-  return "bg-red-400"
+  if (lat < 80) return "bg-emerald-500 dark:bg-emerald-400"
+  if (lat < 150) return "bg-yellow-500 dark:bg-yellow-400"
+  if (lat < 250) return "bg-orange-500 dark:bg-orange-400"
+  return "bg-red-500 dark:bg-red-400"
 }
 
 function lossColor(loss: number | null): string {
   if (loss === null) return "bg-muted"
-  if (loss < 1) return "bg-emerald-400"
-  if (loss < 5) return "bg-yellow-400"
-  if (loss < 10) return "bg-orange-400"
-  return "bg-red-400"
+  if (loss < 1) return "bg-emerald-500 dark:bg-emerald-400"
+  if (loss < 5) return "bg-yellow-500 dark:bg-yellow-400"
+  if (loss < 10) return "bg-orange-500 dark:bg-orange-400"
+  return "bg-red-500 dark:bg-red-400"
 }
 
 function latText(lat: number): string {
@@ -328,21 +330,21 @@ export function NodeCard({ node, onOpen }: { node: Node; onOpen: () => void }) {
               icon={<Cpu className="size-3" />}
               pct={m ? m.cpu : null}
               foot={m ? `load ${m.load[0].toFixed(2)} / ${m.load[1].toFixed(2)} / ${m.load[2].toFixed(2)}` : undefined}
-              color="bg-teal-400"
+              color="bg-teal-500 dark:bg-teal-400"
             />
             <Meter
               label="内存"
               icon={<MemoryStick className="size-3" />}
               pct={m ? percent(m.mem_used, m.mem_total) : null}
               foot={m ? `${bytes(m.mem_used)} / ${bytes(m.mem_total)}` : undefined}
-              color="bg-sky-400"
+              color="bg-sky-500 dark:bg-sky-400"
             />
             <Meter
               label="磁盘"
               icon={<HardDrive className="size-3" />}
               pct={m ? percent(m.disk_used, m.disk_total) : null}
               foot={m ? `${bytes(m.disk_used)} / ${bytes(m.disk_total)}` : undefined}
-              color="bg-amber-400"
+              color="bg-amber-500 dark:bg-amber-400"
             />
             <Meter
               label="Swap"
@@ -350,7 +352,7 @@ export function NodeCard({ node, onOpen }: { node: Node; onOpen: () => void }) {
               pct={m && m.swap_total > 0 ? percent(m.swap_used, m.swap_total) : null}
               foot={m && m.swap_total > 0 ? `${bytes(m.swap_used)} / ${bytes(m.swap_total)}` : undefined}
               empty={m ? "无" : "—"}
-              color="bg-violet-400"
+              color="bg-violet-500 dark:bg-violet-400"
             />
           </div>
 
@@ -420,7 +422,7 @@ export function NodeCard({ node, onOpen }: { node: Node; onOpen: () => void }) {
                   className={cn(
                     "h-2 flex-1 rounded-[2px] transition-colors duration-500",
                     node.traffic_limit <= 0 || i < Math.round((trafficPct ?? 0) / 5)
-                      ? "bg-teal-400"
+                      ? "bg-teal-500 dark:bg-teal-400"
                       : "bg-muted",
                   )}
                 />
