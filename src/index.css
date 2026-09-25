@@ -15,31 +15,32 @@
 /* Lumen 在默认主题的中性底色上引入一支青碧（teal）主色，配合语义化的
    健康/警告/危险三色：多数指标条保持青碧，只有临近上限才转琥珀、红。
    图表填充用同色的自上而下渐变，一眼可读又不喧闹。 */
-/* 浅色调优：页面底色用柔和的冷白（非纯白）以减轻眩光，卡片仍为纯白，
-   两者拉开层次让卡片边界清晰；边框略加深、正文对比充足，做到「舒服明了」。
+/* 浅色调优：整支浅色系比常规面板压暗一档以减轻眩光 —— 底色偏冷灰、
+   卡片不再是纯白（只比底色亮一点），两者仍拉开层次让卡片边界清晰；
+   边框略加深、正文对比充足，做到「舒服明了」。
    深色变量保持不变。 */
 :root {
   --radius: 0.75rem;
-  --background: oklch(0.981 0.004 225);
+  --background: oklch(0.955 0.005 225);
   --foreground: oklch(0.23 0.018 235);
-  --card: oklch(1 0 0);
+  --card: oklch(0.978 0.002 225);
   --card-foreground: oklch(0.23 0.018 235);
-  --popover: oklch(1 0 0);
+  --popover: oklch(0.978 0.002 225);
   --popover-foreground: oklch(0.23 0.018 235);
   --primary: oklch(0.6 0.1 190);
   --primary-foreground: oklch(0.99 0.005 190);
-  --secondary: oklch(0.955 0.008 220);
+  --secondary: oklch(0.928 0.008 220);
   --secondary-foreground: oklch(0.3 0.02 235);
-  --muted: oklch(0.955 0.006 220);
+  --muted: oklch(0.928 0.007 220);
   --muted-foreground: oklch(0.5 0.018 235);
-  --accent: oklch(0.95 0.012 210);
+  --accent: oklch(0.922 0.012 210);
   --accent-foreground: oklch(0.3 0.02 235);
   --destructive: oklch(0.57 0.21 25);
-  --border: oklch(0.905 0.008 225);
-  --input: oklch(0.905 0.008 225);
+  --border: oklch(0.878 0.008 225);
+  --input: oklch(0.878 0.008 225);
   --ring: oklch(0.6 0.1 190);
   /* 折线图多序列用多色区分，青碧居首，随后蓝、绿、琥珀、玫红；
-     浅色下略调深以在白底上更清晰。 */
+     浅色下略调深以在底色上更清晰。 */
   --chart-1: oklch(0.66 0.11 185);
   --chart-2: oklch(0.58 0.13 235);
   --chart-3: oklch(0.6 0.14 150);
