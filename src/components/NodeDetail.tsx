@@ -343,6 +343,9 @@ export function NodeDetail({ node }: { node: Node }) {
       <div className="space-y-2">
         <div className="flex items-center gap-2.5">
           <h2 className="truncate text-2xl font-bold tracking-tight sm:text-3xl">{node.name}</h2>
+          {node.agent_version && (
+            <span className="tnum shrink-0 text-xs font-normal text-muted-foreground/70">agent {node.agent_version}</span>
+          )}
           <Country node={node} />
         </div>
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
@@ -350,7 +353,6 @@ export function NodeDetail({ node }: { node: Node }) {
             <span className={cn("size-2 rounded-full", node.online ? "bg-ok shadow-[0_0_0_3px] shadow-ok/20" : "bg-muted-foreground/40")} />
             <span className={cn("tnum", !node.online && "text-muted-foreground")}>{statusLabel}</span>
           </span>
-          {node.agent_version && <span className="text-muted-foreground">agent {node.agent_version}</span>}
         </div>
       </div>
 

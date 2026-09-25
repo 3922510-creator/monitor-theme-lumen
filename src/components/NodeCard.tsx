@@ -308,6 +308,11 @@ export function NodeCard({ node, onOpen }: { node: Node; onOpen: () => void }) {
           >
             {node.name}
           </h3>
+          {node.agent_version && (
+            <span className="tnum shrink-0 text-[10px] font-normal text-muted-foreground/70">
+              agent {node.agent_version}
+            </span>
+          )}
           {node.remark && (
             <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
               {node.remark}
