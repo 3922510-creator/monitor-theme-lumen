@@ -340,20 +340,26 @@ export function NodeDetail({ node }: { node: Node }) {
 
   return (
     <div className="space-y-5">
-      <div className="space-y-2">
-        <div className="flex items-center gap-2.5">
-          <h2 className="truncate text-2xl font-bold tracking-tight sm:text-3xl">{node.name}</h2>
-          {node.agent_version && (
-            <span className="tnum shrink-0 text-xs font-normal text-muted-foreground/70">agent {node.agent_version}</span>
-          )}
-          <Country node={node} />
-        </div>
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
-          <span className="inline-flex items-center gap-2">
-            <span className={cn("size-2 rounded-full", node.online ? "bg-ok shadow-[0_0_0_3px] shadow-ok/20" : "bg-muted-foreground/40")} />
-            <span className={cn("tnum", !node.online && "text-muted-foreground")}>{statusLabel}</span>
-          </span>
-        </div>
+      {/* Header one line: flag, name, how long it has been up, the agent it runs. */}
+      <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1">
+        <Country node={node} />
+        <h2 className="truncate text-2xl font-bold tracking-tight sm:text-3xl">{node.name}</h2>
+        <span className="inline-flex items-center gap-2 text-sm">
+          <span
+            className={cn(
+              "size-2 rounded-full",
+              node.online
+                ? "bg-ok shadow-[0_0_0_3px] shadow-ok/20"
+                : deployed
+                  ? "bg-red-500 shadow-[0_0_0_3px] shadow-red-500/20 dark:bg-red-400"
+                  : "bg-muted-foreground/40",
+            )}
+          />
+          <span className={cn("tnum", !node.online && "text-muted-foreground")}>{statusLabel}</span>
+        </span>
+        {node.agent_version && (
+          <span className="tnum shrink-0 text-xs font-normal text-muted-foreground/70">agent {node.agent_version}</span>
+        )}
       </div>
 
       {/* One machine's spec sheet as a row of bordered tiles: six across on a
