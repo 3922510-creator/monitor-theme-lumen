@@ -294,7 +294,7 @@ export function NodeCard({ node, onOpen }: { node: Node; onOpen: () => void }) {
               node.online
                 ? "bg-emerald-500 shadow-[0_0_0_3px] shadow-emerald-500/20"
                 : deployed(node)
-                  ? "bg-muted-foreground"
+                  ? "bg-red-500 shadow-[0_0_0_3px] shadow-red-500/20 dark:bg-red-400"
                   : "bg-muted-foreground/40",
             )}
           />
