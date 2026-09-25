@@ -1,7 +1,11 @@
-import { useEffect, useMemo, useRef, useState } from "react"
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react"
 import {
   Activity, ArrowDown, ArrowDownUp, ArrowUp, Cpu, HardDrive, MemoryStick, RefreshCw,
 } from "lucide-react"
+import {
+  siAlmalinux, siAlpinelinux, siArchlinux, siCentos, siDebian, siFedora, siLinux, siOpensuse, siRedhat,
+  siRockylinux, siUbuntu, type SimpleIcon,
+} from "simple-icons"
 
 import { Badge } from "@/components/ui/badge"
 import { Card } from "@/components/ui/card"
@@ -33,12 +37,30 @@ function deployed(node: Node) {
   return node.cpu_cores > 0 || node.mem_total > 0
 }
 
-// Country codes come from the hub as ISO 3166-1 alpha-2 values. Display the
-// code itself so platforms cannot turn it into a country-flag emoji.
-function countryFlag(code: string) {
-  const normalized = code.trim().toUpperCase()
-  return /^[A-Z]{2}$/.test(normalized) ? normalized : ""
-}
+// Emitted as files and fetched on first use, so a page carries only the flags its
+// nodes are in rather than all 267. vite.config.ts keeps them from being inlined
+// into the bundle as data URLs. The simplified set, because this theme is
+// embedded in the hub binary: flag-icons' detailed emblems total 1.95 MiB against
+// 174 KiB here, a difference invisible at 18 by 12 pixels.
+const FLAGS = Object.fromEntries(
+  Object.entries(
+    import.meta.glob<string>("/node_modules/country-flag-icons/3x2/*.svg", {
+      query: "?url",
+      import: "default",
+      eager: true,
+    }),
+  ).map(([path, url]) => [path.match(/([\w-]+)\.svg$/)![1], url]),
+)
+
+// Matched against the whole release name, since "Red Hat Enterprise Linux" and
+// "Raspbian GNU/Linux" do not lead with one word to key on. The distributions a
+// VPS ships with; the rest take the penguin. Each logo costs 1-6 KB of entry
+// bundle, so the list stays at what hosts offer.
+const DISTROS: [string, SimpleIcon][] = [
+  ["debian", siDebian], ["raspbian", siDebian], ["ubuntu", siUbuntu], ["alpine", siAlpinelinux],
+  ["centos", siCentos], ["rocky", siRockylinux], ["almalinux", siAlmalinux], ["red hat", siRedhat],
+  ["fedora", siFedora], ["arch", siArchlinux], ["opensuse", siOpensuse],
+]
 
 // A bare bar sparkline of recent throughput: only the shape matters at this
 // size, so a row of scaled blocks stands in for a chart.
@@ -269,18 +291,14 @@ export function NodeCard({ node, onOpen }: { node: Node; onOpen: () => void }) {
           <span
             className={cn(
               "size-2 shrink-0 rounded-full",
-              node.online ? "bg-emerald-500 shadow-[0_0_0_3px] shadow-emerald-500/20" : "bg-muted-foreground/40",
+              node.online
+                ? "bg-emerald-500 shadow-[0_0_0_3px] shadow-emerald-500/20"
+                : deployed(node)
+                  ? "bg-muted-foreground"
+                  : "bg-muted-foreground/40",
             )}
           />
-          {node.country && (
-            <span
-              className="shrink-0 rounded bg-muted px-1.5 py-0.5 text-sm leading-none"
-              title={node.country.toUpperCase()}
-              aria-label={`地区 ${node.country.toUpperCase()}`}
-            >
-              {countryFlag(node.country) || node.country.toUpperCase()}
-            </span>
-          )}
+          <Country node={node} />
           <h3
             onClick={onOpen}
             className="cursor-pointer truncate font-semibold transition-colors hover:text-primary"
@@ -316,10 +334,13 @@ export function NodeCard({ node, onOpen }: { node: Node; onOpen: () => void }) {
         })()}
       </div>
 
-      <p className="mt-1 truncate text-xs text-muted-foreground">
-        {node.os ? osName(node.os) : "等待首次上报"}
-        {node.arch ? ` · ${node.arch}` : ""}
-        {node.virt && node.virt !== "none" ? ` · ${node.virt}` : ""}
+      <p className="mt-1 flex min-w-0 items-center gap-1 text-xs text-muted-foreground">
+        {node.os && <OsIcon os={node.os} />}
+        <span className="truncate">
+          {node.os ? osName(node.os) : "等待首次上报"}
+          {node.arch ? ` · ${node.arch}` : ""}
+          {node.virt && node.virt !== "none" ? ` · ${node.virt}` : ""}
+        </span>
       </p>
 
       {deployed(node) ? (
@@ -443,16 +464,42 @@ export function NodeCard({ node, onOpen }: { node: Node; onOpen: () => void }) {
   )
 }
 
+/**
+ * The distribution's logo in its brand colour. Mixed toward white on the dark
+ * theme, where AlmaLinux's black and CentOS's navy would otherwise vanish.
+ */
+function OsIcon({ os }: { os: string }) {
+  const name = os.toLowerCase()
+  const icon = DISTROS.find(([key]) => name.includes(key))?.[1] ?? siLinux
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      aria-hidden
+      style={{ "--brand": `#${icon.hex}` } as CSSProperties}
+      className="size-3 shrink-0 fill-(--brand) dark:fill-[color-mix(in_oklab,var(--brand)_60%,white)]"
+    >
+      <path d={icon.path} />
+    </svg>
+  )
+}
+
 export function Country({ node }: { node: Node }) {
   if (!node.country) return null
+  const code = node.country.trim().toUpperCase()
+  const src = FLAGS[code]
+  if (!src) {
+    return (
+      <Badge variant="outline" className="shrink-0 font-normal text-muted-foreground">
+        {code}
+      </Badge>
+    )
+  }
   return (
-    <Badge
-      variant="outline"
-      className="shrink-0 font-normal text-muted-foreground"
-      title={node.country.toUpperCase()}
-      aria-label={`地区 ${node.country.toUpperCase()}`}
-    >
-      {countryFlag(node.country) || node.country.toUpperCase()}
-    </Badge>
+    <img
+      src={src}
+      alt={code}
+      title={code}
+      className="h-3 w-4.5 shrink-0 rounded-[2px] ring-1 ring-foreground/10"
+    />
   )
 }
