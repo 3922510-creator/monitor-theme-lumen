@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react"
 import {
-  Area, AreaChart, Brush, CartesianGrid, ComposedChart, Line, LineChart, ResponsiveContainer,
+  Area, AreaChart, Brush, CartesianGrid, ComposedChart, Line, ResponsiveContainer,
   Tooltip, XAxis, YAxis,
 } from "recharts"
 
@@ -9,7 +9,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { Country } from "@/components/NodeCard"
 import { api, type Node } from "@/lib/api"
 import {
-  axisBytes, axisTop, bytes, clockFor, despike, quarters, cpuName, CYCLES, FOREVER, money, osName, rate,
+  axisBytes, axisTop, bytes, clockFor, despike, quarters, cpuName, cycle, FOREVER, money, osName, rate,
   timeTicks, uptime,
 } from "@/lib/format"
 import { cn } from "@/lib/utils"
@@ -21,6 +21,10 @@ type Point = {
   disk_used: number
   net_rx: number
   net_tx: number
+  // The highest rate measured within the bucket, sent by hub 1.3.1 and later.
+  // Absent from an older hub, and 0 on rows written before the column existed.
+  net_rx_max?: number
+  net_tx_max?: number
 }
 // `latency` is the bucket's median round trip, null when every probe in it timed
 // out. `band` is the range its answers spanned, absent when they spanned nothing.
@@ -234,24 +238,46 @@ export function NodeDetail({ node }: { node: Node }) {
   )
 
   // The hub answers in seconds; the time axis requires milliseconds.
+  //
+  // The line is the bucket's mean, so it integrates to the traffic totals, and a
+  // 15-second speed test averaged over its minute draws at a quarter of the rate
+  // it ran at. The band behind it spans from that mean to the bucket's peak, and
+  // is flat where no peak came.
   const metricRows = useMemo(
-    () => (data?.metrics ?? []).map((m) => ({ ...m, ts: m.ts * 1_000 })),
+    () =>
+      (data?.metrics ?? []).map((m) => ({
+        ...m,
+        ts: m.ts * 1_000,
+        rx_band: [m.net_rx, m.net_rx_max || m.net_rx],
+        tx_band: [m.net_tx, m.net_tx_max || m.net_tx],
+      })),
     [data],
   )
+
+  // The window's highest rate each way, or null from a hub that sends no peak:
+  // a maximum of the means would be labelled a peak it is not.
+  const peak = useMemo(() => {
+    const rows = data?.metrics ?? []
+    if (!rows.some((m) => m.net_rx_max)) return null
+    const max = (pick: (m: Point) => number | undefined) =>
+      rows.reduce((hi, m) => Math.max(hi, pick(m) ?? 0), 0)
+    return { rx: max((m) => m.net_rx_max), tx: max((m) => m.net_tx_max) }
+  }, [data])
 
   // Axis tops for the two panels with no capacity to measure against. CPU and a
   // transfer rate do not express fullness: against a fixed 0-100, a machine
   // sitting at 0.4% draws as a line along the panel's floor. Memory and disk keep
   // their totals as tops, where fullness is the entire question.
   const tops = useMemo(() => {
-    const max = (pick: (m: Point) => number) =>
+    const max = (pick: (m: (typeof metricRows)[number]) => number) =>
       metricRows.reduce((hi, m) => Math.max(hi, pick(m)), 0)
     return {
       // A floor of 4%, or a machine that never exceeds 0.4% would get an axis of
       // 0-0.4 and render every scheduler blip as a peak. Capped at 100.
       cpu: axisTop(max((m) => m.cpu), 4, 10, 100),
-      // Base 1024, so the steps are round in the unit `axisBytes` prints.
-      rate: axisTop(max((m) => Math.max(m.net_rx, m.net_tx)), 1024, 1024),
+      // Base 1024, so the steps are round in the unit `axisBytes` prints. Fitted
+      // to the band rather than the line, or the peaks would run off the top.
+      rate: axisTop(max((m) => Math.max(m.rx_band[1], m.tx_band[1])), 1024, 1024),
     }
   }, [metricRows])
 
@@ -382,7 +408,7 @@ export function NodeDetail({ node }: { node: Node }) {
           label="续费"
           value={[
             node.price > 0
-              ? `${money(node.price, node.currency)} / ${CYCLES[node.billing_cycle] ?? node.billing_cycle}`
+              ? `${money(node.price, node.currency)} / ${cycle(node.billing_cycle)}`
               : "免费",
             node.expires_at ? `${node.expires_at} 到期` : FOREVER,
           ].join(" · ")}
@@ -641,21 +667,48 @@ export function NodeDetail({ node }: { node: Node }) {
           </Panel>
 
           {/* A rate has no total to be a fraction of, so this one climbs the
-              ladder like CPU rather than pinning to a capacity. */}
-          <Panel title="网络速率">
+              ladder like CPU rather than pinning to a capacity.
+
+              The band reaches the highest rate measured within the bucket, and is
+              edged because a one-minute burst on a day's axis is narrower than a
+              pixel, where a fill alone does not show. The edge is dashed rather
+              than faded: the two directions are told apart by shade, and a faded
+              edge of one would take the shade of the other's line. Its lower edge
+              lies under the line. */}
+          <Panel title={peak ? `网络速率 · 峰值 ↓ ${rate(peak.rx)} · ↑ ${rate(peak.tx)}` : "网络速率"}>
             <ResponsiveContainer>
-              <LineChart data={metricRows}>
+              <ComposedChart data={metricRows}>
                 <CartesianGrid strokeDasharray="3 3" className="stroke-border" vertical={false} />
                 <XAxis {...timeAxis(metricRows)} />
                 <YAxis domain={[0, tops.rate]} ticks={quarters(tops.rate)} tickFormatter={axisBytes} unit="/s" width={Y_WIDTH} {...AXIS} />
                 <Tooltip
                   labelFormatter={(ts) => new Date(Number(ts)).toLocaleString("zh-CN")}
-                  formatter={(v) => rate(Number(v))}
+                  formatter={(v, name, item) => {
+                    const top = item?.payload?.[item.dataKey === "net_rx" ? "net_rx_max" : "net_tx_max"]
+                    return [top ? `均值 ${rate(Number(v))} · 峰值 ${rate(Number(top))}` : rate(Number(v)), name]
+                  }}
                   contentStyle={{ fontSize: 12 }}
                 />
+                {[
+                  { key: "rx", stroke: "var(--color-ok)" },
+                  { key: "tx", stroke: "var(--color-chart-1)" },
+                ].map((s) => (
+                  <Area
+                    key={s.key}
+                    dataKey={`${s.key}_band`}
+                    stroke={s.stroke}
+                    strokeWidth={1}
+                    strokeDasharray="2 2"
+                    fill={s.stroke}
+                    fillOpacity={0.16}
+                    isAnimationActive={false}
+                    tooltipType="none"
+                    legendType="none"
+                  />
+                ))}
                 <Line dataKey="net_rx" name="下行" stroke="var(--color-ok)" {...SERIES} />
                 <Line dataKey="net_tx" name="上行" stroke="var(--color-chart-1)" {...SERIES} />
-              </LineChart>
+              </ComposedChart>
             </ResponsiveContainer>
           </Panel>
 

@@ -64,8 +64,18 @@ function useTheme() {
   )
   const dark = saved ? saved === "dark" : system
 
+  // Switched with every transition held. Cards and meter bars fade their colours
+  // over 150-500 ms while everything else changes at once, so a bar already in
+  // the dark palette would animate out of a card still light.
   useEffect(() => {
+    const hold = document.createElement("style")
+    hold.textContent = "*,*::before,*::after{transition:none!important}"
+    document.head.append(hold)
     document.documentElement.classList.toggle("dark", dark)
+    // Resolves the new colours while transitions are off, so removing the hold
+    // starts none.
+    void document.body.offsetWidth
+    hold.remove()
   }, [dark])
 
   return [

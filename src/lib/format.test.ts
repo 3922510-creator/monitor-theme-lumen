@@ -4,7 +4,7 @@
 //
 // Nothing imports it, so the bundle never includes it.
 import {
-  axisBytes, axisTop, bytes, cpuName, daysUntil, despike, osName, pair, quarters, timeTicks, uptime,
+  axisBytes, axisTop, bytes, cpuName, cycle, daysUntil, despike, osName, pair, quarters, timeTicks, uptime,
 } from "./format.ts"
 
 let failed = 0
@@ -119,6 +119,20 @@ eq(uptime(2 * 86400 + 5 * 3600), "2 天 5 小时", "超过一天不再写分钟"
 
 eq(osName("Debian GNU/Linux 12 (bookworm)"), "Debian 12", "发行版名去掉代号")
 eq(cpuName("Intel(R) Xeon(R) CPU E5-2680 8-Core Processor"), "Intel Xeon E5-2680", "CPU 名去掉商标和核数")
+
+// cycle：hub 1.3.0 起除固定名外还能存任意整月（`18m`、`60m`）。不认的词原样显示，
+// 而不是退成空白——旧 hub 或手填值都不该让这一格消失。
+{
+  eq(cycle("monthly"), "月付", "月付")
+  eq(cycle("semiannual"), "半年付", "半年付")
+  eq(cycle("biennial"), "两年付", "两年付")
+  eq(cycle("once"), "一次性", "一次性")
+  eq(cycle("18m"), "18 个月付", "18 个月")
+  eq(cycle("5m"), "5 个月付", "5 个月")
+  eq(cycle("60m"), "5 年付", "整年的月数读成年付")
+  eq(cycle("7m"), "7 个月付", "非整年的月数不用年付")
+  eq(cycle("custom"), "custom", "不认识的写法原样显示")
+}
 
 if (failed) {
   console.error(`\n${failed} 项不通过`)
