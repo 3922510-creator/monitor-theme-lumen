@@ -243,8 +243,15 @@ function NodeList({ nodes, group, onGroup, onOpen }: {
   ]
   return (
     <>
+      <Summary nodes={shown} group={current} />
+      {/* Below the live figures, where it reads as a filter for the list rather
+          than a second header, and boxed so the chips have an edge to sit in. */}
       {groups.length > 0 && (
-        <div role="group" aria-label="分组" className="-mx-1 flex gap-1 overflow-x-auto px-1 pb-1">
+        <div
+          role="group"
+          aria-label="分组"
+          className="flex gap-1 overflow-x-auto rounded-xl border bg-card p-1"
+        >
           {tabs.map(([value, label, count]) => (
             <Button
               // Group names are free text, so they carry a prefix no key of
@@ -262,7 +269,6 @@ function NodeList({ nodes, group, onGroup, onOpen }: {
           ))}
         </div>
       )}
-      <Summary nodes={shown} group={current} />
       {nodes.length === 0 ? (
         <p className="py-16 text-center text-sm text-muted-foreground">还没有节点</p>
       ) : (
