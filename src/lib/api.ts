@@ -268,7 +268,10 @@ export function useNodes() {
       try {
         opened = new WebSocket(url)
       } catch {
+        // No stream to watch, so poll -- and keep offering the stream, since a
+        // failure here (a blocked scheme, a CSP) can clear on its own.
         poll ??= setInterval(fetchOnce, 5000)
+        retry = setTimeout(connect, 5000)
         return
       }
       socket = opened

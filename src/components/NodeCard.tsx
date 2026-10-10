@@ -308,6 +308,13 @@ export function NodeCard({ node, onOpen }: { node: Node; onOpen: () => void }) {
           >
             {node.name}
           </h3>
+          {/* Inline after the name, where the operator expects to see it; the
+              private note stays off the card and lives in the detail page. */}
+          {node.public_remark && (
+            <span className="max-w-24 shrink-0 truncate rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground sm:max-w-40">
+              {node.public_remark}
+            </span>
+          )}
         </div>
         {(() => {
           const days = node.expires_in !== undefined ? node.expires_in : daysUntil(node.expires_at)
@@ -328,27 +335,6 @@ export function NodeCard({ node, onOpen }: { node: Node; onOpen: () => void }) {
           )
         })()}
       </div>
-
-      {/* The hub sends `remark` only to a signed-in caller: on the card it is for
-          the operator, never for the visitor. Own row, since either note is
-          free-form and would otherwise squeeze the name out of the title. */}
-      {(node.public_remark || node.remark) && (
-        <div className="mt-1.5 flex min-w-0 flex-wrap items-center gap-1">
-          {node.public_remark && (
-            <span className="max-w-full truncate rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
-              {node.public_remark}
-            </span>
-          )}
-          {node.remark && (
-            <span
-              className="max-w-full truncate rounded-full border border-dashed px-2 py-0.5 text-xs font-medium text-muted-foreground"
-              title="私有备注 · 仅自己可见"
-            >
-              {node.remark}
-            </span>
-          )}
-        </div>
-      )}
 
       <p className="mt-1 flex min-w-0 items-center gap-1 text-xs text-muted-foreground">
         {node.os && <OsIcon os={node.os} />}
