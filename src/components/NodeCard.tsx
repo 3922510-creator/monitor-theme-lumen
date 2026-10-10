@@ -9,7 +9,6 @@ import {
 
 import { Badge } from "@/components/ui/badge"
 import { Card } from "@/components/ui/card"
-import { Flag, FLAGS } from "@/components/Flag"
 import { Meter } from "@/components/Meter"
 import { api, nodeSpeedHistory, type Node } from "@/lib/api"
 import { bytes, daysUntil, osName, percent, rate, uptime } from "@/lib/format"
@@ -37,6 +36,21 @@ function monthUsage(node: Node): number {
 function deployed(node: Node) {
   return node.cpu_cores > 0 || node.mem_total > 0
 }
+
+// Emitted as files and fetched on first use, so a page carries only the flags its
+// nodes are in rather than all 267. vite.config.ts keeps them from being inlined
+// into the bundle as data URLs. The simplified set, because this theme is
+// embedded in the hub binary: flag-icons' detailed emblems total 1.95 MiB against
+// 174 KiB here, a difference invisible at 18 by 12 pixels.
+const FLAGS = Object.fromEntries(
+  Object.entries(
+    import.meta.glob<string>("/node_modules/country-flag-icons/3x2/*.svg", {
+      query: "?url",
+      import: "default",
+      eager: true,
+    }),
+  ).map(([path, url]) => [path.match(/([\w-]+)\.svg$/)![1], url]),
+)
 
 // Matched against the whole release name, since "Red Hat Enterprise Linux" and
 // "Raspbian GNU/Linux" do not lead with one word to key on. The distributions a
@@ -474,12 +488,20 @@ function OsIcon({ os }: { os: string }) {
 export function Country({ node }: { node: Node }) {
   if (!node.country) return null
   const code = node.country.trim().toUpperCase()
-  if (!FLAGS[code]) {
+  const src = FLAGS[code]
+  if (!src) {
     return (
       <Badge variant="outline" className="shrink-0 font-normal text-muted-foreground">
         {code}
       </Badge>
     )
   }
-  return <Flag code={code} />
+  return (
+    <img
+      src={src}
+      alt={code}
+      title={code}
+      className="h-3 w-4.5 shrink-0 rounded-[2px] ring-1 ring-foreground/10"
+    />
+  )
 }

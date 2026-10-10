@@ -2,7 +2,6 @@ import { lazy, Suspense, useCallback, useEffect, useState, useSyncExternalStore 
 import { Moon, Sun, Wrench } from "lucide-react"
 
 import { NodeCard } from "@/components/NodeCard"
-import { NodeMap } from "@/components/NodeMap"
 import { Summary } from "@/components/Summary"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -11,8 +10,8 @@ import { api, groupsOf, useNodes, type Node } from "@/lib/api"
 type Me = { authed: boolean; github: boolean; site_name: string; public_page: boolean }
 
 // Split out because recharts is most of this bundle and the list page draws no
-// chart. The landing page is 360 kB rather than 751 kB (122 kB gzipped against
-// 234 kB), with the rest fetched immediately after it paints.
+// chart. The landing page is 242 kB rather than 629 kB (77 kB gzipped against
+// 188 kB), with the rest fetched immediately after it paints.
 const loadDetail = () => import("@/components/NodeDetail").then((m) => ({ default: m.NodeDetail }))
 const NodeDetail = lazy(loadDetail)
 
@@ -244,9 +243,6 @@ function NodeList({ nodes, group, onGroup, onOpen }: {
   ]
   return (
     <>
-      {/* Above the live figures: where the nodes are is read once and skimmed,
-          while the figures below change every two seconds. */}
-      <NodeMap nodes={shown} />
       <Summary nodes={shown} group={current} />
       {/* Below the live figures, where it reads as a filter for the list rather
           than a second header, and boxed so the chips have an edge to sit in. */}
