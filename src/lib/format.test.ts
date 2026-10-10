@@ -4,7 +4,8 @@
 //
 // Nothing imports it, so the bundle never includes it.
 import {
-  axisBytes, axisTop, bytes, cpuName, cycle, daysUntil, despike, osName, pair, quarters, timeTicks, uptime,
+  axisBytes, axisTop, bytes, cpuName, cycle, daysUntil, despike, osName, pair, quarters, sinceSeen,
+  timeTicks, uptime,
 } from "./format.ts"
 
 let failed = 0
@@ -132,6 +133,14 @@ eq(cpuName("Intel(R) Xeon(R) CPU E5-2680 8-Core Processor"), "Intel Xeon E5-2680
   eq(cycle("60m"), "5 年付", "整年的月数读成年付")
   eq(cycle("7m"), "7 个月付", "非整年的月数不用年付")
   eq(cycle("custom"), "custom", "不认识的写法原样显示")
+}
+
+// sinceSeen：hub 1.4.0 的 last_seen_ago 优先（null 也算答案），只有它缺席时才退回
+// 浏览器时钟。
+{
+  eq(sinceSeen({ last_seen: 1, last_seen_ago: 120 }), 120, "按 hub 的时钟")
+  eq(sinceSeen({ last_seen: Date.now() / 1000 - 300, last_seen_ago: null }), 0, "hub 说从未上报，不改用浏览器计算")
+  eq(Math.round(sinceSeen({ last_seen: Date.now() / 1000 - 300 })), 300, "旧 hub 由浏览器计算")
 }
 
 if (failed) {

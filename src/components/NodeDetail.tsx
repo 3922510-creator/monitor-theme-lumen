@@ -10,7 +10,7 @@ import { Country } from "@/components/NodeCard"
 import { api, type Node } from "@/lib/api"
 import {
   axisBytes, axisTop, bytes, clockFor, despike, quarters, cpuName, cycle, FOREVER, money, osName, rate,
-  timeTicks, uptime,
+  sinceSeen, timeTicks, uptime,
 } from "@/lib/format"
 import { cn } from "@/lib/utils"
 
@@ -356,7 +356,7 @@ export function NodeDetail({ node }: { node: Node }) {
 
   // Inline status for the header: a coloured dot and a duration, without the
   // bordered badge the card uses -- at this size the name carries the frame.
-  const down = node.last_seen ? Date.now() / 1000 - node.last_seen : 0
+  const down = sinceSeen(node)
   const deployed = node.cpu_cores > 0 || node.mem_total > 0
   const statusLabel = node.online
     ? `在线 ${node.metrics ? uptime(node.metrics.uptime) : ""}`.trim()

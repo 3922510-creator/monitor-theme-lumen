@@ -32,6 +32,11 @@ export type Node = {
   /** Set by the operator; empty is ungrouped. Absent from a hub predating groups. */
   group?: string
   last_seen: number
+  /**
+   * Seconds since this node last reported, on the hub's clock, or null when it
+   * never has. Absent on a hub before 1.4.0.
+   */
+  last_seen_ago?: number | null
   metrics: Metrics | null
   os: string
   kernel: string
@@ -181,6 +186,18 @@ export function safeNodes(nodes: Node[]): Node[] {
 }
 
 /**
+ * Asks the hub to gzip each pushed frame, sent then as a binary message: a
+ * hundred reporting nodes are about 110 KB of JSON every two seconds, 15 KB
+ * compressed. Only where the browser can decompress it; a hub that predates the
+ * parameter ignores it and sends text, which [frameText] passes through.
+ */
+const GZIP = typeof DecompressionStream === "function" ? "?gzip" : ""
+
+/** A pushed frame as text: a gzipped one arrives as binary. */
+export const frameText = (data: string | Blob) =>
+  typeof data === "string" ? data : new Response(data.stream().pipeThrough(new DecompressionStream("gzip"))).text()
+
+/**
  * Live node list. Uses the WebSocket the hub pushes every two seconds, falling
  * back to polling if it cannot be established.
  */
@@ -197,59 +214,134 @@ export function useNodes() {
     let socket: WebSocket | null = null
     let poll: ReturnType<typeof setInterval> | null = null
     let retry: ReturnType<typeof setTimeout> | null = null
-    let closed = false
+    let silent: ReturnType<typeof setTimeout> | null = null
 
+    // Set by `resume`. The throughput lines are drawn by position, one point per
+    // push, so the samples from before the page was hidden, or the stream went
+    // silent, would join the new ones as if no time had passed in between. They
+    // are dropped on the first arrival rather than at once, which would read as
+    // 0 B/s beside figures that are merely stale.
+    let gap = false
     const receive = (list: Node[]) => {
       const safe = safeNodes(list)
+      if (gap) {
+        speedHistory.clear()
+        nodeSpeedHistory.clear()
+      }
+      gap = false
       sample(safe)
       setNodes(safe)
       setError(null)
       setClosed(false)
     }
 
-    const fetchOnce = () =>
-      api<{ nodes: Node[] }>("/nodes")
-        .then((d) => receive(d.nodes))
+    // Bumped by `pause`: a request started before the page was hidden may fail
+    // or land after a fresh one, and neither result describes the page now.
+    let epoch = 0
+    const fetchOnce = () => {
+      const started = epoch
+      return api<{ nodes: Node[] }>("/nodes")
+        .then((d) => {
+          if (started === epoch) receive(d.nodes)
+        })
         .catch((e: Error) => {
+          if (started !== epoch) return
+          // A request lost on a dead pooled connection says nothing of an open
+          // stream, whose own watchdog reports it going quiet.
+          if (e instanceof ApiError && e.status === 0 && socket?.readyState === WebSocket.OPEN) return
           setError(e.message)
           if (e instanceof ApiError && e.status === 401) setClosed(true)
         })
+    }
 
-    fetchOnce()
-
-    const url = `${location.protocol === "https:" ? "wss" : "ws"}://${location.host}/api/ws`
+    const url = `${location.protocol === "https:" ? "wss" : "ws"}://${location.host}/api/ws${GZIP}`
     // A hub restart closes every stream. Without reconnecting, a page that
     // outlives a deploy would remain on the fallback poll for the rest of its
     // life, refreshing at a fifth of the live rate with no indication.
     const connect = () => {
+      let opened: WebSocket
       try {
-        socket = new WebSocket(url)
+        opened = new WebSocket(url)
       } catch {
         poll ??= setInterval(fetchOnce, 5000)
         return
       }
-      socket.onmessage = (event) => {
-        receive(JSON.parse(event.data).nodes)
-        // The stream has returned; the poll was only covering for it.
-        if (poll) {
-          clearInterval(poll)
-          poll = null
-        }
+      socket = opened
+      // Re-armed by every frame read. Five of the hub's two-second pushes without
+      // one mean the connection died without closing, as when a NAT on the path
+      // forgets it or the hub's machine drops off the network; the browser sends
+      // nothing on it and would notice only when TCP keepalive gives up, 450 s
+      // later in Chrome. The stream is replaced rather than closed and awaited:
+      // on a dead connection the close event arrives only after the 60 s closing
+      // handshake times out. The notice stays until data arrives, since with no
+      // network the fetch started alongside may hang rather than fail.
+      const watch = () => {
+        if (silent) clearTimeout(silent)
+        silent = setTimeout(() => {
+          setError("实时数据中断，正在重新连接")
+          resume()
+        }, 10_000)
       }
-      socket.onerror = () => socket?.close()
-      socket.onclose = () => {
-        if (closed) return
+      watch()
+      // In arrival order: a gzipped frame decodes asynchronously, and one that
+      // finishes after this stream closed or was replaced describes nothing
+      // current. Only a frame that reads re-arms the watchdog, so a stream whose
+      // frames cannot be read counts as silent and is replaced.
+      let decoded = Promise.resolve()
+      opened.onmessage = (event) => {
+        decoded = decoded
+          .then(async () => {
+            const nodes = JSON.parse(await frameText(event.data)).nodes
+            if (opened.readyState !== WebSocket.OPEN) return
+            watch()
+            receive(nodes)
+            // The stream has returned; the poll was only covering for it.
+            if (poll) {
+              clearInterval(poll)
+              poll = null
+            }
+          })
+          .catch((e) => console.warn("live frame dropped:", e))
+      }
+      opened.onerror = () => opened.close()
+      opened.onclose = () => {
+        if (silent) clearTimeout(silent)
         poll ??= setInterval(fetchOnce, 5000)
         retry = setTimeout(connect, 5000)
       }
     }
-    connect()
 
-    return () => {
-      closed = true
-      socket?.close()
+    // A phone suspends a page it sends to the background and drops its
+    // connections without telling it. Back in front, the socket may still read
+    // as open while nothing arrives, or close and wait out the retry, either way
+    // leaving the figures from before; a request caught in flight fails. So a
+    // hidden page lets go of the stream and starts nothing, and a visible one
+    // fetches at once and opens a fresh stream.
+    const pause = () => {
+      epoch++
+      if (socket) {
+        socket.onclose = null
+        socket.close()
+        socket = null
+      }
       if (poll) clearInterval(poll)
       if (retry) clearTimeout(retry)
+      if (silent) clearTimeout(silent)
+      poll = retry = silent = null
+    }
+    const resume = () => {
+      pause()
+      gap = true
+      fetchOnce()
+      connect()
+    }
+    const visibility = () => (document.hidden ? pause() : resume())
+    document.addEventListener("visibilitychange", visibility)
+    resume()
+
+    return () => {
+      document.removeEventListener("visibilitychange", visibility)
+      pause()
     }
   }, [])
 

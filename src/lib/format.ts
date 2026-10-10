@@ -63,6 +63,17 @@ export function uptime(seconds: number): string {
   return d > 0 ? `${d} 天 ${h} 小时` : h > 0 ? `${h} 小时 ${m} 分` : `${m} 分`
 }
 
+/**
+ * Seconds since the node last reported, as the hub counts them: subtracted on
+ * the visitor's clock, a browser eight hours fast would show a node that dropped
+ * a minute ago as offline for eight hours. The browser's clock serves only a hub
+ * from before `last_seen_ago`.
+ */
+export function sinceSeen(node: { last_seen: number; last_seen_ago?: number | null }): number {
+  if (node.last_seen_ago !== undefined) return node.last_seen_ago ?? 0
+  return node.last_seen ? Date.now() / 1000 - node.last_seen : 0
+}
+
 /** Whole days until a date, negative once it has passed. */
 export function daysUntil(date?: string | null): number | null {
   if (!date) return null

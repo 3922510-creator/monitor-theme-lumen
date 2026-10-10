@@ -1,6 +1,6 @@
 /// <reference types="node" />
 import assert from "node:assert/strict"
-import { groupsOf, safeNodes, sample, speedHistory, type Node } from "./api.ts"
+import { frameText, groupsOf, safeNodes, sample, speedHistory, type Node } from "./api.ts"
 
 const node = { id: 1, metrics: { uptime: 100, cpu: 1, load: [0.1, 0.2, 0.3],
   mem_total: 1024, mem_used: 512, swap_total: 0, swap_used: 0, disk_total: 2048, disk_used: 1024,
@@ -30,3 +30,13 @@ assert.equal(speedHistory.has("东京"), false)
 sample([live("*", 5), live("", 7)])
 assert.deepEqual([speedHistory.get(null)?.at(-1)?.rx, speedHistory.get("*")?.at(-1)?.rx], [12, 5])
 console.log("throughput is kept per group")
+
+// 推送帧：hub 1.4.0 起连 /api/ws?gzip 收到的是 gzip 二进制帧，旧 hub 与站长登录时的
+// 帧仍是文本。两种都要能读，读出来是同一份 JSON。
+{
+  const payload = JSON.stringify({ nodes: [node] })
+  assert.equal(await frameText(payload), payload)
+  const gzipped = new Blob([payload]).stream().pipeThrough(new CompressionStream("gzip"))
+  assert.equal(await frameText(new Blob([await new Response(gzipped).arrayBuffer()])), payload)
+  console.log("push frames read as text and as gzip")
+}
