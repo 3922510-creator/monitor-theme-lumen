@@ -415,8 +415,17 @@ export function NodeDetail({ node }: { node: Node }) {
         />
       </dl>
 
+      {node.public_remark && (
+        <p className="rounded-md bg-muted px-3 py-2 text-sm whitespace-pre-wrap">{node.public_remark}</p>
+      )}
+
+      {/* The hub sends this one only to a signed-in caller: on the page it is for
+          the operator, never for the visitor. */}
       {node.remark && (
-        <p className="rounded-md bg-muted px-3 py-2 text-sm whitespace-pre-wrap">{node.remark}</p>
+        <p className="rounded-md border border-dashed px-3 py-2 text-sm whitespace-pre-wrap">
+          <span className="mb-1 block text-[11px] font-medium text-muted-foreground">私有备注 · 仅自己可见</span>
+          {node.remark}
+        </p>
       )}
 
       <Card className="gap-0 p-4 sm:p-5">

@@ -73,6 +73,11 @@ export type Node = {
   hostname?: string
   ip?: string
   remark?: string
+  /**
+   * Written for the status page, unlike `remark`: the hub sends it to anonymous
+   * callers too. Empty when unset; absent on a hub before 1.4.0.
+   */
+  public_remark?: string
 }
 
 /** Every group in use, in the order of the first node carrying it: the operator's node order decides the tab order. */
